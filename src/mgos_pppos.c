@@ -92,6 +92,10 @@ static SLIST_HEAD(s_pds, mgos_pppos_data) s_pds = SLIST_HEAD_INITIALIZER(s_pds);
 static const int s_baud_rates[] = {0 /* first we try the configured rate */,
                                    115200, 230400, 460800, 921600};
 
+char sysmode_e[9] = "NOSERVICE";
+char operator_e[25] = "";
+int rssi_e = 0;
+
 static void mgos_pppos_try_baud_rate(struct mgos_pppos_data *pd) {
   struct mgos_uart_config ucfg;
   if (!mgos_uart_config_get(pd->cfg->uart_no, &ucfg)) return;
@@ -396,25 +400,53 @@ static bool mgos_pppos_creg_cb(void *cb_arg, bool ok, struct mg_str data) {
   return ok;
 }
 
+// static bool mgos_pppos_cops_cb(void *cb_arg, bool ok, struct mg_str data) {
+//   if (!ok) return true;
+//   const char *q1 = mg_strchr(data, '"');
+//   if (q1 == NULL) return true;
+//   const char *q2 =
+//       mg_strchr(mg_mk_str_n(q1 + 1, data.len - (q1 - data.p) - 1), '"');
+//   if (q2 == NULL) return true;
+//   LOG(LL_INFO, ("Operator: %.*s", (int) (q2 - q1 - 1), q1 + 1));
+//   (void) cb_arg;
+//   return true;
+// }
+
 static bool mgos_pppos_cops_cb(void *cb_arg, bool ok, struct mg_str data) {
   if (!ok) return true;
-  const char *q1 = mg_strchr(data, '"');
-  if (q1 == NULL) return true;
-  const char *q2 =
-      mg_strchr(mg_mk_str_n(q1 + 1, data.len - (q1 - data.p) - 1), '"');
-  if (q2 == NULL) return true;
-  LOG(LL_INFO, ("Operator: %.*s", (int) (q2 - q1 - 1), q1 + 1));
+
+  int mode, format;
+
+  if (sscanf(data.p, "+COPS: %d,%d,\"%[^\"]\"", &mode, &format,
+      operator_e) == 3) {
+    LOG(LL_INFO, ("OPERATOR: %s", operator_e));
+  }
+
   (void) cb_arg;
+
   return true;
 }
 
-static bool mgos_pppos_csq_cb(void *cb_arg, bool ok, struct mg_str data) {
+// static bool mgos_pppos_csq_cb(void *cb_arg, bool ok, struct mg_str data) {
+//   if (!ok) return true;
+//   int sq, ber;
+//   if (sscanf(data.p, "+CSQ: %d,%d", &sq, &ber) != 2) return true;
+//   if (sq < 0 || sq > 32) return true;
+//   LOG(LL_INFO, ("RSSI: %d", (-113 + sq * 2)));
+//   (void) cb_arg;
+//   return true;
+// }
+
+static bool mgos_pppos_qcsq_cb(void *cb_arg, bool ok, struct mg_str data) {
   if (!ok) return true;
-  int sq, ber;
-  if (sscanf(data.p, "+CSQ: %d,%d", &sq, &ber) != 2) return true;
-  if (sq < 0 || sq > 32) return true;
-  LOG(LL_INFO, ("RSSI: %d", (-113 + sq * 2)));
+
+  if (sscanf(data.p, "+QCSQ: \"%[A-Z-0-9]\",%d", sysmode_e, &rssi_e) == 2) {
+    LOG(LL_INFO, ("SYSMODE: %s", sysmode_e));
+    LOG(LL_INFO, ("RSSI: %d", rssi_e));
+  }
+
   (void) cb_arg;
+
   return true;
 }
 
@@ -641,7 +673,8 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       add_cmd(pd, mgos_pppos_creg_cb, "AT+CREG?");
       add_cmd(pd, mgos_pppos_at_cb, "AT+COPS=3,0");
       add_cmd(pd, mgos_pppos_cops_cb, "AT+COPS?");
-      add_cmd(pd, mgos_pppos_csq_cb, "AT+CSQ");
+      // add_cmd(pd, mgos_pppos_csq_cb, "AT+CSQ");
+      add_cmd(pd, mgos_pppos_qcsq_cb, "AT+QCSQ");
       add_cmd(pd, NULL, "AT+CREG=2"); /* Enable unsolicited reports */
       add_cmd(pd, NULL, "AT+CGDCONT=1,\"IP\",\"%s\"", pd->cfg->apn);
       add_cmd(pd, mgos_pppos_atd_cb, "ATDT*99***1#");
