@@ -126,7 +126,19 @@ struct mg_str mgos_pppos_get_iccid(int if_instance);
 
 extern char sysmode_e[9];
 extern char operator_e[25];
+<<<<<<< Updated upstream
 extern int rssi_e;
+=======
+
+extern int rssi_e;
+extern int rsrp_e;
+extern int sinr_e;
+extern int rsrq_e;
+
+extern const char SYSMODE_NOSERVICE[];
+extern const char SYSMODE_GSM[];
+extern const char SYSMODE_CAT_M1[];
+>>>>>>> Stashed changes
 
 #ifdef __cplusplus
 }

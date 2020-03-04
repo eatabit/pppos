@@ -92,9 +92,16 @@ static SLIST_HEAD(s_pds, mgos_pppos_data) s_pds = SLIST_HEAD_INITIALIZER(s_pds);
 static const int s_baud_rates[] = {0 /* first we try the configured rate */,
                                    115200, 230400, 460800, 921600};
 
-char sysmode_e[9] = "NOSERVICE";
-char operator_e[25] = "";
+const char SYSMODE_NOSERVICE[] = "NOSERVICE";
+const char SYSMODE_GSM[] = "GSM";
+const char SYSMODE_CAT_M1[] = "CAT-M1";
+
+char sysmode_e[] = "";
+char operator_e[] = "";
 int rssi_e = 0;
+int rsrp_e = 0;
+int sinr_e = 0;
+int rsrq_e = 0;
 
 static void mgos_pppos_try_baud_rate(struct mgos_pppos_data *pd) {
   struct mgos_uart_config ucfg;
@@ -440,9 +447,20 @@ static bool mgos_pppos_cops_cb(void *cb_arg, bool ok, struct mg_str data) {
 static bool mgos_pppos_qcsq_cb(void *cb_arg, bool ok, struct mg_str data) {
   if (!ok) return true;
 
-  if (sscanf(data.p, "+QCSQ: \"%[A-Z-0-9]\",%d", sysmode_e, &rssi_e) == 2) {
+  if (sscanf(data.p, "+QCSQ: \"%[A-Z-0-9]\",%d,%d,%d,%d", sysmode_e, &rssi_e,
+             &rsrp_e, &sinr_e, &rsrq_e) > 1) {
     LOG(LL_INFO, ("SYSMODE: %s", sysmode_e));
-    LOG(LL_INFO, ("RSSI: %d", rssi_e));
+
+    if (strcmp(sysmode_e, SYSMODE_GSM) == 0) {
+      LOG(LL_INFO, ("RSSI: %d", rssi_e));
+    } else if (strcmp(sysmode_e, SYSMODE_CAT_M1) == 0) {
+      LOG(LL_INFO, ("RSSI: %d", rssi_e));
+      LOG(LL_INFO, ("LTE RSRP: %d", rsrp_e));
+      LOG(LL_INFO, ("LTE SINR: %d", sinr_e));
+      LOG(LL_INFO, ("LTE RSRQ: %d", rsrq_e));
+    }
+  } else {
+    LOG(LL_INFO, ("SYSMODE: %s", SYSMODE_NOSERVICE));
   }
 
   (void) cb_arg;
