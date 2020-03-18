@@ -257,42 +257,6 @@ static bool mgos_pppos_at_cb(void *cb_arg, bool ok, struct mg_str data) {
   return true;
 }
 
-static bool mgos_pppos_nwscanseq_cb(void *cb_arg, bool ok, struct mg_str data) {
-  if (ok) {
-    LOG(LL_INFO, ("AT+QCFG=nwscanseq: %.*s", data.len, data.p));
-  }
-
-  (void) cb_arg;
-  (void) ok;
-  (void) data;
-
-  return true;
-}
-
-static bool mgos_pppos_nwscanmode_cb(void *cb_arg, bool ok, struct mg_str data) {
-  if (ok) {
-    LOG(LL_INFO, ("AT+QCFG=nwscanmode: %.*s", data.len, data.p));
-  }
-
-  (void) cb_arg;
-  (void) ok;
-  (void) data;
-
-  return true;
-}
-
-static bool mgos_pppos_iotopmode_cb(void *cb_arg, bool ok, struct mg_str data) {
-  if (ok) {
-    LOG(LL_INFO, ("AT+QCFG=iotopmode: %.*s", data.len, data.p));
-  }
-
-  (void) cb_arg;
-  (void) ok;
-  (void) data;
-
-  return true;
-}
-
 static bool mgos_pppos_ati_cb(void *cb_arg, bool ok, struct mg_str data) {
   struct mgos_pppos_data *pd = (struct mgos_pppos_data *) cb_arg;
   if (ok) {
@@ -700,11 +664,6 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
                     (apn ? apn : "")));
       mbuf_remove(&pd->data, pd->data.len);
       add_cmd(pd, mgos_pppos_at_cb, "AT");
-      // READ modem config
-      add_cmd(pd, mgos_pppos_nwscanseq_cb, "AT+QCFG=\"nwscanseq\"");
-      add_cmd(pd, mgos_pppos_nwscanmode_cb, "AT+QCFG=\"nwscanmode\"");
-      add_cmd(pd, mgos_pppos_iotopmode_cb, "AT+QCFG=\"iotopmode\"");
-      // READ modem config
       add_cmd(pd, NULL, "ATH");
       add_cmd(pd, NULL, "ATE0");
       add_cmd(pd, mgos_pppos_ati_cb, "ATI");
