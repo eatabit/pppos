@@ -50,8 +50,6 @@ struct mgos_pppos_info_arg {
   struct mg_str imsi;
   struct mg_str iccid;
   struct mg_str oper;
-  struct mg_str sysmode;
-  int rssi;
 };
 
 /* Create PPPoS interface instance.
@@ -122,13 +120,11 @@ struct mgos_pppos_cmd {
  *     return true;
  *   }
  */
-
 bool mgos_pppos_run_cmds(int if_instance, const struct mgos_pppos_cmd *cmds);
 
 struct mg_str mgos_pppos_get_imei(int if_instance);
 struct mg_str mgos_pppos_get_imsi(int if_instance);
 struct mg_str mgos_pppos_get_iccid(int if_instance);
-int mgos_pppos_get_rssi(int if_instance);
 
 #ifdef __cplusplus
 }

@@ -41,8 +41,7 @@
 
 #define AT_CMD_TIMEOUT 2.0
 #define COPS_TIMEOUT 60
-#define QCSQ_TIMEOUT 1
-#define COPS_AUTO_TIMEOUT 300
+#define COPS_AUTO_TIMEOUT 180
 
 enum mgos_pppos_state {
   PPPOS_IDLE = 0,
@@ -85,8 +84,7 @@ struct mgos_pppos_data {
   ppp_pcb *pppcb;
   enum mgos_net_event net_status;
   enum mgos_net_event net_status_last_reported;
-  struct mg_str ati_resp, imei, imsi, iccid, oper, sysmode;
-  int rssi;
+  struct mg_str ati_resp, imei, imsi, iccid, oper;
 
   SLIST_ENTRY(mgos_pppos_data) next;
 };
@@ -360,7 +358,6 @@ static bool mgos_pppos_cpin_cb(void *cb_arg, bool ok, struct mg_str data) {
       .imsi = pd->imsi,
       .iccid = pd->iccid,
       .oper = pd->oper,
-      .rssi = pd->rssi,
   };
   mgos_event_trigger(MGOS_PPPOS_INFO, &arg);
   return true;
@@ -460,45 +457,15 @@ static bool mgos_pppos_cops_cb(void *cb_arg, bool ok, struct mg_str data) {
   return true;
 }
 
-static bool mgos_pppos_qcsq_cb(void *cb_arg, bool ok, struct mg_str data) {
+static bool mgos_pppos_csq_cb(void *cb_arg, bool ok, struct mg_str data) {
+  if (!ok) return true;
+  int sq, ber;
+  if (sscanf(data.p, "+CSQ: %d,%d", &sq, &ber) != 2) return true;
+  if (sq < 0 || sq > 32) return true;
+  LOG(LL_INFO, ("RSSI: %d", (-113 + sq * 2)));
+  (void) cb_arg;
   return true;
-
-  // struct mgos_pppos_data *pd = (struct mgos_pppos_data *) cb_arg;
-  //
-  // if (!ok) return true;
-  //
-  // char sysmode[10];
-  //
-  // LOG(LL_INFO, ("QCSQ: %.*s", data.len, data.p));
-  // if (sscanf(data.p, "+QCSQ: \"%[A-Z-0-9]\",%d,%d,%d,%d", sysmode, &pd->rssi,
-  //            &pd->rsrp, &pd->sinr, &pd->rsrq) > 1) {
-  //   struct mg_str sysmode_s = mg_mk_str_n(sysmode, strlen(sysmode));
-  //
-  //   pd->sysmode = mg_strdup_nul(sysmode_s);
-  //
-  //   LOG(LL_INFO, ("SYSMODE: %.*s", pd->sysmode.len, pd->sysmode.p));
-  //   LOG(LL_INFO, ("RSSI: %d", pd->rssi));
-  //   LOG(LL_INFO, ("LTE RSRP: %d", pd->rsrp));
-  //   LOG(LL_INFO, ("LTE SINR: %d", pd->sinr));
-  //   LOG(LL_INFO, ("LTE RSRQ: %d", pd->rsrq));
-  // } else {
-  //   LOG(LL_INFO, ("UNKNOWN SYSMODE: %s", sysmode));
-  // }
-  //
-  // (void) cb_arg;
-  //
-  // return true;
 }
-//
-// static bool mgos_pppos_csq_cb(void *cb_arg, bool ok, struct mg_str data) {
-//   if (!ok) return true;
-//   int sq, ber;
-//   if (sscanf(data.p, "+CSQ: %d,%d", &sq, &ber) != 2) return true;
-//   if (sq < 0 || sq > 32) return true;
-//   LOG(LL_INFO, ("RSSI: %d", (-113 + sq * 2)));
-//   (void) cb_arg;
-//   return true;
-// }
 
 static bool mgos_pppos_atd_cb(void *cb_arg, bool ok, struct mg_str data) {
   struct mgos_pppos_data *pd = (struct mgos_pppos_data *) cb_arg;
@@ -745,9 +712,8 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       add_cmd(pd, mgos_pppos_cops_cb, 0, "AT+COPS?");
       add_cmd(pd, NULL, 0, "AT+COPS=3,0"); /* Long alphanumeric format. */
       add_cmd(pd, mgos_pppos_cops_cb, 0, "AT+COPS?");
-      // add_cmd(pd, mgos_pppos_csq_cb, 0, "AT+CSQ");
+      add_cmd(pd, mgos_pppos_csq_cb, 0, "AT+CSQ");
       add_cmd(pd, NULL, 0, "AT+CGDCONT=1,\"IP\",\"%s\"", pd->cfg->apn);
-      add_cmd(pd, mgos_pppos_qcsq_cb, QCSQ_TIMEOUT, "AT+QCSQ");
       add_cmd(pd, mgos_pppos_atd_cb, 0, "ATDT*99***1#");
       mgos_pppos_set_state(pd, PPPOS_CMD);
       (void) apn;
@@ -1004,15 +970,6 @@ struct mg_str mgos_pppos_get_iccid(int if_instance) {
     if (pd->if_instance == if_instance) return mg_strdup(pd->iccid);
   }
   return mg_mk_str_n(NULL, 0);
-}
-
-int mgos_pppos_get_rssi(int if_instance) {
-  struct mgos_pppos_data *pd;
-  SLIST_FOREACH(pd, &s_pds, next) {
-    if (pd->if_instance == if_instance) return pd->rssi;
-  }
-
-  return 0;
 }
 
 bool mgos_pppos_run_cmds(int if_instance, const struct mgos_pppos_cmd *cmds) {
