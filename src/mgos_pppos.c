@@ -457,16 +457,6 @@ static bool mgos_pppos_cops_cb(void *cb_arg, bool ok, struct mg_str data) {
   return true;
 }
 
-static bool mgos_pppos_csq_cb(void *cb_arg, bool ok, struct mg_str data) {
-  if (!ok) return true;
-  int sq, ber;
-  if (sscanf(data.p, "+CSQ: %d,%d", &sq, &ber) != 2) return true;
-  if (sq < 0 || sq > 32) return true;
-  LOG(LL_INFO, ("RSSI: %d", (-113 + sq * 2)));
-  (void) cb_arg;
-  return true;
-}
-
 static bool mgos_pppos_atd_cb(void *cb_arg, bool ok, struct mg_str data) {
   struct mgos_pppos_data *pd = (struct mgos_pppos_data *) cb_arg;
   if (ok) pd->cmd_mode = false;
@@ -717,7 +707,6 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       add_cmd(pd, mgos_pppos_cops_cb, 0, "AT+COPS?");
       add_cmd(pd, NULL, 0, "AT+COPS=3,0"); /* Long alphanumeric format. */
       add_cmd(pd, mgos_pppos_cops_cb, 0, "AT+COPS?");
-      add_cmd(pd, mgos_pppos_csq_cb, 0, "AT+CSQ");
       add_cmd(pd, NULL, 0, "AT+CGDCONT=1,\"IP\",\"%s\"", pd->cfg->apn);
       add_cmd(pd, mgos_pppos_atd_cb, 0, "ATDT*99***1#");
       mgos_pppos_set_state(pd, PPPOS_CMD);
