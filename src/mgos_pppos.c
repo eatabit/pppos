@@ -570,13 +570,14 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       }
       /* Reset modem if it's possible and we're not currently connected
        * (executing in-band user command). */
-      if (pd->net_status == MGOS_NET_EV_CONNECTING &&
-          (pd->cfg->rst_gpio >= 0 &&
+      if ((pd->net_status == MGOS_NET_EV_DISCONNECTED ||
+           pd->net_status == MGOS_NET_EV_CONNECTING) &&
+           (pd->cfg->rst_gpio >= 0 &&
            (pd->attempt == 1 || pd->cfg->rst_mode == 1))) {
-        mgos_pppos_set_state(pd, PPPOS_RESET);
-      } else {
-        mgos_pppos_set_state(pd, PPPOS_BEGIN_WAIT);
-      }
+         mgos_pppos_set_state(pd, PPPOS_RESET);
+       } else {
+         mgos_pppos_set_state(pd, PPPOS_BEGIN_WAIT);
+       }
       break;
     }
     case PPPOS_RESET: {
@@ -666,6 +667,10 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       add_cmd(pd, mgos_pppos_at_cb, 0, "AT");
       add_cmd(pd, NULL, 0, "ATH");
       add_cmd(pd, NULL, 0, "ATE0");
+      add_cmd(pd, NULL, 0, "AT+QCFG=\"nwscanseq\",0201,1");
+      add_cmd(pd, NULL, 0, "AT+QCFG=\"nwscanmode\",0,1");
+      add_cmd(pd, NULL, 0, "AT+QCFG=\"iotopmode\",0,1");
+      add_cmd(pd, NULL, 0, "AT+QCFG=\"roamservice\",2,1");
       add_cmd(pd, NULL, 0, "AT+CFUN=0"); /* Offline */
       if (!pd->baud_ok) {
         struct mgos_uart_config ucfg;
