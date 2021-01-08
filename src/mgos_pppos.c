@@ -41,7 +41,7 @@
 
 #define AT_CMD_TIMEOUT 2.0
 #define COPS_TIMEOUT 60
-#define COPS_AUTO_TIMEOUT 180
+#define COPS_AUTO_TIMEOUT 600
 
 enum mgos_pppos_state {
   PPPOS_IDLE = 0,
@@ -405,7 +405,8 @@ static bool mgos_pppos_creg_cb(void *cb_arg, bool ok, struct mg_str data) {
     LOG(LL_ERROR, ("Connected to mobile network (%s)", sts));
   } else {
     int timeout = (pd->cops_set ? COPS_TIMEOUT : COPS_AUTO_TIMEOUT);
-    LOG(LL_ERROR, ("Not connected to mobile network, status %d (%s) %d", st, sts, timeout));
+    LOG(LL_ERROR, ("Not connected to mobile network, status %d (%s) %d", st,
+                   sts, timeout));
     if (pd->creg_start == 0) {
       pd->creg_start = mgos_uptime();
     }
@@ -424,7 +425,8 @@ static bool mgos_pppos_creg_cb(void *cb_arg, bool ok, struct mg_str data) {
 static bool mgos_pppos_cops_set_cb(void *cb_arg, bool ok, struct mg_str data) {
   struct mgos_pppos_data *pd = (struct mgos_pppos_data *) cb_arg;
   if (!ok) {
-    LOG(LL_ERROR, ("Error setting network operator: %.*s", (int) data.len, data.p));
+    LOG(LL_ERROR,
+        ("Error setting network operator: %.*s", (int) data.len, data.p));
   }
   pd->try_cops = false;
   pd->cops_set = ok;
@@ -562,12 +564,12 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
        * (executing in-band user command). */
       if ((pd->net_status == MGOS_NET_EV_DISCONNECTED ||
            pd->net_status == MGOS_NET_EV_CONNECTING) &&
-           (pd->cfg->rst_gpio >= 0 &&
+          (pd->cfg->rst_gpio >= 0 &&
            (pd->attempt == 1 || pd->cfg->rst_mode == 1))) {
-         mgos_pppos_set_state(pd, PPPOS_RESET);
-       } else {
-         mgos_pppos_set_state(pd, PPPOS_BEGIN_WAIT);
-       }
+        mgos_pppos_set_state(pd, PPPOS_RESET);
+      } else {
+        mgos_pppos_set_state(pd, PPPOS_BEGIN_WAIT);
+      }
       break;
     }
     case PPPOS_RESET: {
@@ -657,10 +659,6 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       add_cmd(pd, mgos_pppos_at_cb, 0, "AT");
       add_cmd(pd, NULL, 0, "ATH");
       add_cmd(pd, NULL, 0, "ATE0");
-      add_cmd(pd, NULL, 0, "AT+QCFG=\"nwscanseq\",0201,1");
-      add_cmd(pd, NULL, 0, "AT+QCFG=\"nwscanmode\",0,1");
-      add_cmd(pd, NULL, 0, "AT+QCFG=\"iotopmode\",0,1");
-      add_cmd(pd, NULL, 0, "AT+QCFG=\"roamservice\",2,1");
       add_cmd(pd, NULL, 0, "AT+CFUN=0"); /* Offline */
       if (!pd->baud_ok) {
         struct mgos_uart_config ucfg;
@@ -700,7 +698,11 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       if (!ok) {
         /* Auto mode */
         LOG(LL_INFO, ("Automatic operator selection"));
-        add_cmd(pd, NULL, COPS_AUTO_TIMEOUT, "AT+COPS=0,1");
+        add_cmd(pd, NULL, 1.0, "AT+QCFG=\"nwscanseq\",0201,1");
+        add_cmd(pd, NULL, 1.0, "AT+QCFG=\"nwscanmode\",0,1");
+        add_cmd(pd, NULL, 1.0, "AT+QCFG=\"iotopmode\",0,1");
+        add_cmd(pd, NULL, 1.0, "AT+QCFG=\"roamservice\",2,1");
+        add_cmd(pd, NULL, COPS_AUTO_TIMEOUT, "AT+COPS=0");
       }
       add_cmd(pd, mgos_pppos_creg_cb, 0, "AT+CREG?");
       add_cmd(pd, NULL, 0, "AT+COPS=3,2"); /* Numeric operator format. */
