@@ -700,7 +700,7 @@ static void mgos_pppos_dispatch_once(struct mgos_pppos_data *pd) {
       if (!ok) {
         /* Auto mode */
         LOG(LL_INFO, ("Automatic operator selection"));
-        add_cmd(pd, NULL, COPS_AUTO_TIMEOUT, "AT+COPS=3,0");
+        add_cmd(pd, NULL, COPS_AUTO_TIMEOUT, "AT+COPS=0,1");
       }
       add_cmd(pd, mgos_pppos_creg_cb, 0, "AT+CREG?");
       add_cmd(pd, NULL, 0, "AT+COPS=3,2"); /* Numeric operator format. */
